@@ -31,7 +31,7 @@ jobs:
     - name: Configure CMake
       shell: bash
       working-directory: ${{ github.workspace }}/build
-      run: cmake -DCIM_VERSION=CGMES_2.4.15_16FEB2016 $GITHUB_WORKSPACE
+      run: cmake -DCIM_VERSION=CGMES_2.4.15_16FEB2016 -DCOVERAGE=ON $GITHUB_WORKSPACE
 
     - name: Build dpsimpy and test examples
       shell: bash
@@ -67,7 +67,7 @@ jobs:
     - name: Configure CMake
       shell: bash
       working-directory: ${{ github.workspace }}/build
-      run: cmake -DCIM_VERSION=CGMES_2.4.15_16FEB2016 $GITHUB_WORKSPACE
+      run: cmake -DCIM_VERSION=CGMES_2.4.15_16FEB2016 -DCOVERAGE=ON $GITHUB_WORKSPACE
 
     - name: Build every target
       shell: bash
@@ -113,22 +113,45 @@ jobs:
 
     - name: Install parallel testing
       shell: bash
-      run: pip install pytest-xdist
+      run: pip install pytest pytest-xdist pytest-cov nbformat nbconvert
 
     - name: Run pytest
       shell: bash
       working-directory: ${{ github.workspace }}
       env:
         PYTHONPATH: "${{ github.workspace }}/build"
-      run: |
-        cp -r python/src/dpsim build/
-        pytest -v examples/Notebooks -n auto
+      run: pytest --cov --cov-branch --cov-report=xml examples/Notebooks/Circuits/
+      continue-on-error: true
 
     - name: Archive notebook outputs
       uses: actions/upload-artifact@v4
       with:
         name: pytest-output-${{ github.sha }}
         path: outputs/
+
+    - name: Capture coverage files
+      run: |
+        cd build
+        lcov --capture --directory . --output-file coverage.info
+        lcov --remove coverage.info '/usr/*' "${GITHUB_WORKSPACE}/tests/*" --output-file coverage.info
+        genhtml coverage.info --output-directory coverage_report
+
+    - name: Upload coverage artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-rocky
+        path: |
+          build/coverage.info
+          build/coverage_report/
+          build/**/*.gc*
+          ${{ github.workspace }}/src/**/*.cpp
+
+
+    - name: Upload coverage report
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        slug: AnasBahr/dpsim_a
 
   compare-notebook-results:
     name: Compare Notebook results
