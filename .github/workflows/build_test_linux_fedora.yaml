@@ -6,7 +6,7 @@ on:
     - master
   pull_request:
 
-## Build ##
+## Build a##
 
 jobs:
   linux-fedora-dpsimpy:
